@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<plugin xmlns="http://www.willuhn.de/schema/jameica-plugin"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.willuhn.de/schema/jameica-plugin http://www.willuhn.de/schema/jameica-plugin-1.0.xsd"
+        name="hibiscus.duplikate" version="1.0.0" class="de.open4me.duplikate.DuplikatePlugin">
+
+  <description>Hibiscus-Plugin: Identifizierung von potentiellen Umsatz-Duplikaten</description>
+  <url></url>
+  <homepage></homepage>
+  <license>GPL - http://www.gnu.org/copyleft/gpl.html</license>
+
+  <!-- Define dependencies to jameica or other plugins -->
+  <requires jameica="1.10+">
+    <!--  <import plugin="hibiscus" version="1.12+" required="false" /> //-->
+  </requires>
+
+  <!-- Define regex wildcards for the classes and jars the classfinder should load -->
+  <classfinder>
+    <include>jameica\.example\.jar</include>
+    <include>.*\.class</include>
+  </classfinder>
+
+  <!--  <navigation>
+    <item id="sqlshow.sql" name="SQL Show" icon-close="folder.png" icon-open="folder-open.png" action="" >
+      <item name="sqlshow.sql.exec" icon-close="text-x-generic.png" action="de.open4me.devel.sql.AbfrageAction" />
+    </item>
+	</navigation> 
+ <extensions>
+  <extension extends="sqlshow.sql" class="de.open4me.duplikate.Menu"/>
+</extensions>
+	-->
+ <menu>
+    <item id="duplikate.menu"                             name="Duplikate">
+        <item id="depotviewer.suchen"        name="Duplikate suchen"                  action="de.open4me.duplikate.ShowAction" />
+    </item>
+  </menu>
+	
+	
+
+</plugin>
+
