@@ -3,11 +3,11 @@
 <plugin xmlns="http://www.willuhn.de/schema/jameica-plugin"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.willuhn.de/schema/jameica-plugin http://www.willuhn.de/schema/jameica-plugin-1.0.xsd"
-        name="hibiscus.duplikate" version="1.0.0" class="de.open4me.duplikate.DuplikatePlugin">
+        name="hibiscus.duplikate" version="1.0.2" class="de.open4me.duplikate.DuplikatePlugin">
 
   <description>Hibiscus-Plugin: Identifizierung von potentiellen Umsatz-Duplikaten</description>
-  <url></url>
-  <homepage></homepage>
+  <url>http://www.open4me.de/hibiscus/hibiscus.duplikate/hibiscus.duplikate.zip</url>
+  <homepage>https://github.com/littleyoda/hibiscus.duplikate</homepage>
   <license>GPL - http://www.gnu.org/copyleft/gpl.html</license>
 
   <!-- Define dependencies to jameica or other plugins -->
