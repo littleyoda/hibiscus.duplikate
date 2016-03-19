@@ -14,7 +14,7 @@ import de.willuhn.jameica.hbci.server.VerwendungszweckUtil;
 public class DuplikateView extends AbstractView
 {
 	private DuplikateControl control;
-	
+
 	private ArrayList<GenericObjectHashMap> list = new ArrayList<GenericObjectHashMap>(); 
 	/**
 	 * @see de.willuhn.jameica.gui.AbstractView#bind()
@@ -48,8 +48,11 @@ public class DuplikateView extends AbstractView
 			control.setList(list);
 		}
 	}
-	
+
+	String[] einstufung =  new String[] {"sehr niedrig", "niedrig", "mittel", "hoch", "sehr hoch"};
+	Integer[][] einstunfengrenzen = new Integer[][] { { Integer.MIN_VALUE,  10} , {11, 30} , {31, 70 }, { 71, 90}, {91, Integer.MAX_VALUE} };
 	private void check(Konto k, ArrayList<GenericObjectHashMap> list) throws RemoteException {
+		System.out.println("Konto " + k.getName());
 		DBIterator liste = DuplikatePlugin.getDBService().createList(Umsatz.class);
 		liste.addFilter("konto_id=" + k.getID());
 		liste.setOrder("order by datum,betrag,id desc");
@@ -57,57 +60,91 @@ public class DuplikateView extends AbstractView
 		while (liste.hasNext()) {
 			Umsatz u = (Umsatz) liste.next();
 			if (lastUmsatz != null) {
-				if ((Math.abs(u.getBetrag()) > 0.009 
-						&& (Math.abs(u.getBetrag()  - lastUmsatz.getBetrag()) < 0.01) 
-						&&  (u.getDatum().toString().equals(lastUmsatz.getDatum().toString()))
-						&& (u.getKonto().getID() == lastUmsatz.getKonto().getID())
-						)) {
-					int id = (list.size() / 2) + 1;
-					String aehnlichkeit = getAehnlichkeit(u, lastUmsatz);
-					for ( Umsatz x : new Umsatz[] {u, lastUmsatz } ) {
-						GenericObjectHashMap g = new GenericObjectHashMap();
-						g.setAttribute("AID", id);
-						g.setAttribute("Konto", k.getName() + " (" + k.getBezeichnung() + ", " + k.getIban() + ") ");
-						g.setAttribute("Umsatz ID", x.getID());
-						g.setAttribute("Datum", x.getDatum());
-						g.setAttribute("Betrag", x.getBetrag());
-						g.setAttribute("Kategorie", x.getUmsatzTyp());
-						g.setAttribute("Verwendungszweck", Utils.getVerwendungszwecke(x));
-						g.setAttribute("Ähnlichkeit", aehnlichkeit);
-						g.setAttribute("Notizen", x.getAttribute("kommentar"));
-						list.add(g);
-					}
-
+				int aehnlichkeit = getAehnlichkeit(u, lastUmsatz);
+				if (aehnlichkeit <= einstunfengrenzen[0][1]) {
+					lastUmsatz = u;
+					continue;
 				}
+				int id = (list.size() / 2) + 1;
+				for ( Umsatz x : new Umsatz[] {u, lastUmsatz } ) {
+					GenericObjectHashMap g = new GenericObjectHashMap();
+					g.setAttribute("AID", id);
+					g.setAttribute("Konto", k.getName() + " (" + k.getBezeichnung() + ", " + k.getIban() + ") ");
+					g.setAttribute("Umsatz ID", x.getID());
+					g.setAttribute("Datum", x.getDatum());
+					g.setAttribute("Betrag", x.getBetrag());
+					g.setAttribute("Kategorie", x.getUmsatzTyp());
+					g.setAttribute("Verwendungszweck", Utils.getVerwendungszwecke(x));
+					g.setAttribute("Ähnlichkeit", getEinstufung(aehnlichkeit));
+					g.setAttribute("Notizen", x.getAttribute("kommentar"));
+					list.add(g);
+				}
+
 			}
 			lastUmsatz = u;
 		}
 	}
 
-	private String getAehnlichkeit(Umsatz u, Umsatz lastUmsatz) throws RemoteException {
+	private String getEinstufung(int a) {
+		for (int i = 0; i < einstufung.length; i++) {
+			Integer[] grenzen = einstunfengrenzen[i];
+			if (grenzen[0] >= a && a <= grenzen[1]) {
+				return einstufung[i] + "(" + a + ")";
+			}
+		}
+		return null;
+	}
+	private int getAehnlichkeit(Umsatz u, Umsatz lastUmsatz) throws RemoteException {
+		// Die Grundlagen testen. 
+		// Betrag, Datum, Gegenkonto und Konto muss gleich sein. Und der Betrag darf nicht gleich 0 sein.
+		String gk1 = u.getGegenkontoNummer() == null ? "1" : u.getGegenkontoNummer(); 
+		String gk2 = lastUmsatz.getGegenkontoNummer() == null ? "1" : lastUmsatz.getGegenkontoNummer(); 
+		boolean anschauen = ((Math.abs(u.getBetrag()) > 0.009 
+				&& (Math.abs(u.getBetrag()  - lastUmsatz.getBetrag()) < 0.01) 
+				&&  (u.getDatum().toString().equals(lastUmsatz.getDatum().toString()))
+				&& (u.getKonto().getID() == lastUmsatz.getKonto().getID())
+				&& (gk1.equals(gk2))
+				));
+		if (!anschauen) {
+			return Integer.MIN_VALUE;
+		}
+		int stufe = 20;
+		int counter = 50;
 		int id1 = Integer.parseInt(u.getID());
 		int id2 = Integer.parseInt(lastUmsatz.getID());
 		int abstand = Math.abs(id1 - id2);
 		String bz1 = Utils.getVerwendungszwecke(u);
 		String bz2 = Utils.getVerwendungszwecke(lastUmsatz);
 		if (bz1.isEmpty() || bz2.isEmpty()) {
-			return "Niedrig";
+			return einstunfengrenzen [0][0];
 		}
+		// Verwendungszweck auf echte Gleichheit testen
 		if (bz1.equals(bz2)) {
 			if (abstand < 2) {
-				return "Niedrig";
+				// Wenn die beiden Buchungen direkt hintereinander eingetragen sind, ist es unwahrschienlich, dass es ein Duplikat ist 
+				counter -= stufe;
+			} else {
+				counter += stufe;
 			}
-			return "Sehr Hoch";
-		} 
-		bz1 = bz1.replace("\n", "").replace(" ", "");
-		bz2 = bz2.replace("\n", "").replace(" ", "");
-		if (bz1.equals(bz2)) {
-			return "Hoch";
+		} else {
+			// Verwendungszweck auf Gleichheit testen, wenn alle Leerzeichen und Zeilenumbrüche entfernt wurden.
+			bz1 = bz1.replace("\n", "").replace(" ", "");
+			bz2 = bz2.replace("\n", "").replace(" ", "");
+			if (bz1.equals(bz2)) {
+				counter += stufe;
+			} else if (bz1.startsWith(bz2) || bz2.startsWith(bz1)) {
+				// Test auf abgekürzte Verwendungszwecke
+				counter += stufe;
+			} else {
+				counter -= stufe; // Abwertung für keine Ähnlichkeit
+			}
+			
 		}
-		if (bz1.startsWith(bz2) || bz2.startsWith(bz1)) {
-			return "Hoch";
+		// Wenn der Saldo unterschiedlich ist, abwerten, da Duplikate unwahrscheinlicher
+		if ((Math.abs(u.getSaldo() - lastUmsatz.getSaldo()) > 0.001)) {
+			counter -= stufe;
 		}
-		return "Mittel";
+		return counter;
 	}
 
 }
